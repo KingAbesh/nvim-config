@@ -2,6 +2,7 @@ return {
 	"neovim/nvim-lspconfig",
 	event = { "BufReadPre", "BufNewFile" },
 	dependencies = {
+		"mason-org/mason-lspconfig.nvim",
 		"hrsh7th/cmp-nvim-lsp",
 		{ "antosha417/nvim-lsp-file-operations", config = true },
 		{ "folke/neodev.nvim", opts = {} },
@@ -9,18 +10,16 @@ return {
 		"leoluz/nvim-dap-go",
 	},
 	config = function()
-		local lspconfig_ok, lspconfig = pcall(require, "lspconfig")
-		if not lspconfig_ok then
+		local ok_lsp, lspconfig = pcall(require, "lspconfig")
+		if not ok_lsp then
 			return
 		end
 
 		local cmp_nvim_lsp = require("cmp_nvim_lsp")
 		local capabilities = cmp_nvim_lsp.default_capabilities()
-		local mason_lspconfig = require("mason-lspconfig")
 
-		-- Global on_attach function
+		-- Global on_attach
 		local on_attach = function(client, bufnr)
-			-- Prevent `clear_references` in VS Code
 			if not vim.g.vscode then
 				vim.api.nvim_create_autocmd("CursorHold", {
 					buffer = bufnr,
@@ -31,7 +30,6 @@ return {
 			end
 			local opts = { buffer = bufnr, silent = true }
 			local keymap = vim.keymap
-
 			keymap.set("n", "gR", "<cmd>Telescope lsp_references<CR>", opts)
 			keymap.set("n", "gD", vim.lsp.buf.declaration, opts)
 			keymap.set("n", "gd", "<cmd>Telescope lsp_definitions<CR>", opts)
@@ -47,54 +45,51 @@ return {
 			keymap.set("n", "<leader>rs", ":LspRestart<CR>", opts)
 		end
 
-		-- Setup servers
-		mason_lspconfig.setup_handlers({
-			function(server_name)
-				lspconfig[server_name].setup({
-					capabilities = capabilities,
-					on_attach = on_attach,
-				})
-			end,
-			["gopls"] = function()
-				lspconfig.gopls.setup({
-					capabilities = capabilities,
-					on_attach = on_attach,
-					cmd = { "gopls" },
-					filetypes = { "go", "gomod", "gowork", "gotmpl" },
-					root_dir = lspconfig.util.root_pattern("go.work", "go.mod", ".git"),
-					settings = {
-						gopls = {
-							analyses = {
-								unusedparams = true,
-								nilness = true,
-								shadow = true,
-							},
-							staticcheck = true,
-							gofumpt = true,
-						},
-					},
-				})
-			end,
-			["lua_ls"] = function()
-				lspconfig.lua_ls.setup({
-					capabilities = capabilities,
-					on_attach = on_attach,
-					settings = {
-						Lua = {
-							diagnostics = { globals = { "vim" } },
-							completion = { callSnippet = "Replace" },
-						},
-					},
-				})
-			end,
-			["graphql"] = function()
-				lspconfig.graphql.setup({
-					capabilities = capabilities,
-					on_attach = on_attach,
-					filetypes = { "graphql", "gql", "svelte", "typescriptreact", "javascriptreact" },
-				})
-			end,
+		-- Mason LSPConfig v2+ setup
+		require("mason").setup()
+		require("mason-lspconfig").setup({
+			ensure_installed = { "lua_ls", "gopls", "graphql" },
+			automatic_enable = false,
 		})
+
+		-- Configure Lua
+		-- vim.lsp.config("lua_ls", {
+		-- 	capabilities = capabilities,
+		-- 	on_attach = on_attach,
+		-- 	settings = {
+		-- 		Lua = {
+		-- 			diagnostics = { globals = { "vim" } },
+		-- 			completion = { callSnippet = "Replace" },
+		-- 		},
+		-- 	},
+		-- })
+
+		-- Configure Go
+		-- vim.lsp.config("gopls", {
+		-- 	capabilities = capabilities,
+		-- 	on_attach = on_attach,
+		-- 	cmd = { "gopls" },
+		-- 	filetypes = { "go", "gomod", "gowork", "gotmpl" },
+		-- 	root_dir = lspconfig.util.root_pattern("go.work", "go.mod", ".git"),
+		-- 	settings = {
+		-- 		gopls = {
+		-- 			analyses = {
+		-- 				unusedparams = true,
+		-- 				nilness = true,
+		-- 				shadow = true,
+		-- 			},
+		-- 			staticcheck = true,
+		-- 			gofumpt = true,
+		-- 		},
+		-- 	},
+		-- })
+
+		-- Configure GraphQL
+		-- vim.lsp.config("graphql", {
+		-- 	capabilities = capabilities,
+		-- 	on_attach = on_attach,
+		-- 	filetypes = { "graphql", "gql", "svelte", "typescriptreact", "javascriptreact" },
+		-- })
 
 		-- Go format-on-save
 		vim.api.nvim_create_autocmd("BufWritePre", {
