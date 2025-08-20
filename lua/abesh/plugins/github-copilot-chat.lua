@@ -207,7 +207,7 @@ return {
 			-- Copilot Chat Models
 			{ "<leader>a?", "<cmd>CopilotChatModels<cr>", desc = "CopilotChat - Select Models" },
 			-- Copilot Chat Agents
-			{ "<leader>aa", "<cmd>CopilotChatAgents<cr>", desc = "CopilotChat - Select Agents" },
+			-- { "<leader>aa", "<cmd>CopilotChatAgents<cr>", desc = "CopilotChat - Select Agents" },
 		},
 	},
 }

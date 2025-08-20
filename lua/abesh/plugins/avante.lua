@@ -11,7 +11,7 @@ return {
 	opts = {
 		-- add any opts here
 		-- for example
-		provider = "copilot",
+		provider = "claude",
 		providers = {
 			claude = {
 				endpoint = "https://api.anthropic.com",
