@@ -2,7 +2,9 @@ return {
 	"neovim/nvim-lspconfig",
 	event = { "BufReadPre", "BufNewFile" },
 	dependencies = {
+		"mason-org/mason.nvim",
 		"mason-org/mason-lspconfig.nvim",
+		"WhoIsSethDaniel/mason-tool-installer.nvim",
 		"hrsh7th/cmp-nvim-lsp",
 		{ "antosha417/nvim-lsp-file-operations", config = true },
 		{ "folke/neodev.nvim", opts = {} },
@@ -10,6 +12,28 @@ return {
 		"leoluz/nvim-dap-go",
 	},
 	config = function()
+		-- Setup mason-lspconfig and mason-tool-installer
+		local mason_lspconfig = require("mason-lspconfig")
+		local mason_tool_installer = require("mason-tool-installer")
+
+		-- Setup mason-lspconfig with correct server names
+		mason_lspconfig.setup({
+			ensure_installed = { "lua_ls", "gopls", "ts_ls" },
+			automatic_installation = true,
+		})
+
+		-- Setup mason-tool-installer for formatters and linters
+		mason_tool_installer.setup({
+			ensure_installed = {
+				"prettier", -- prettier formatter
+				"stylua", -- lua formatter
+				"isort", -- python formatter
+				"black", -- python formatter
+				"pylint", -- python linter
+				"eslint_d", -- js linter
+			},
+		})
+
 		local ok_lsp, lspconfig = pcall(require, "lspconfig")
 		if not ok_lsp then
 			return
@@ -45,51 +69,119 @@ return {
 			keymap.set("n", "<leader>rs", ":LspRestart<CR>", opts)
 		end
 
-		-- Mason LSPConfig v2+ setup
-		require("mason").setup()
-		require("mason-lspconfig").setup({
-			ensure_installed = { "lua_ls", "gopls", "graphql" },
-			automatic_enable = false,
+		-- Configure LSP servers using traditional lspconfig setup
+		-- Mason will automatically install these servers
+
+		-- Configure Lua Language Server
+		lspconfig.lua_ls.setup({
+			capabilities = capabilities,
+			on_attach = on_attach,
+			settings = {
+				Lua = {
+					runtime = {
+						version = "LuaJIT",
+					},
+					diagnostics = {
+						globals = { "vim" },
+					},
+					workspace = {
+						library = vim.api.nvim_get_runtime_file("", true),
+						checkThirdParty = false,
+					},
+					telemetry = {
+						enable = false,
+					},
+					completion = {
+						callSnippet = "Replace",
+					},
+				},
+			},
 		})
 
-		-- Configure Lua
-		-- vim.lsp.config("lua_ls", {
-		-- 	capabilities = capabilities,
-		-- 	on_attach = on_attach,
-		-- 	settings = {
-		-- 		Lua = {
-		-- 			diagnostics = { globals = { "vim" } },
-		-- 			completion = { callSnippet = "Replace" },
-		-- 		},
-		-- 	},
-		-- })
+		-- Configure Go Language Server
+		lspconfig.gopls.setup({
+			capabilities = capabilities,
+			on_attach = on_attach,
+			cmd = { "gopls" },
+			filetypes = { "go", "gomod", "gowork", "gotmpl" },
+			root_dir = lspconfig.util.root_pattern("go.work", "go.mod", ".git"),
+			settings = {
+				gopls = {
+					analyses = {
+						unusedparams = true,
+						nilness = true,
+						shadow = true,
+						unusedvariable = true,
+					},
+					staticcheck = true,
+					gofumpt = true,
+					usePlaceholders = true,
+					completeUnimported = true,
+					hints = {
+						assignVariableTypes = true,
+						compositeLiteralFields = true,
+						compositeLiteralTypes = true,
+						constantValues = true,
+						functionTypeParameters = true,
+						parameterNames = true,
+						rangeVariableTypes = true,
+					},
+				},
+			},
+		})
 
-		-- Configure Go
-		-- vim.lsp.config("gopls", {
-		-- 	capabilities = capabilities,
-		-- 	on_attach = on_attach,
-		-- 	cmd = { "gopls" },
-		-- 	filetypes = { "go", "gomod", "gowork", "gotmpl" },
-		-- 	root_dir = lspconfig.util.root_pattern("go.work", "go.mod", ".git"),
-		-- 	settings = {
-		-- 		gopls = {
-		-- 			analyses = {
-		-- 				unusedparams = true,
-		-- 				nilness = true,
-		-- 				shadow = true,
-		-- 			},
-		-- 			staticcheck = true,
-		-- 			gofumpt = true,
-		-- 		},
-		-- 	},
-		-- })
+		-- Configure TypeScript/JavaScript Language Server
+		lspconfig.ts_ls.setup({
+			capabilities = capabilities,
+			on_attach = on_attach,
+			filetypes = {
+				"typescript",
+				"typescriptreact",
+				"javascript",
+				"javascriptreact",
+				"vue",
+			},
+			root_dir = lspconfig.util.root_pattern("package.json", "tsconfig.json", "jsconfig.json", ".git"),
+			settings = {
+				typescript = {
+					inlayHints = {
+						includeInlayParameterNameHints = "all",
+						includeInlayParameterNameHintsWhenArgumentMatchesName = false,
+						includeInlayFunctionParameterTypeHints = true,
+						includeInlayVariableTypeHints = true,
+						includeInlayVariableTypeHintsWhenTypeMatchesName = false,
+						includeInlayPropertyDeclarationTypeHints = true,
+						includeInlayFunctionLikeReturnTypeHints = true,
+						includeInlayEnumMemberValueHints = true,
+					},
+				},
+				javascript = {
+					inlayHints = {
+						includeInlayParameterNameHints = "all",
+						includeInlayParameterNameHintsWhenArgumentMatchesName = false,
+						includeInlayFunctionParameterTypeHints = true,
+						includeInlayVariableTypeHints = true,
+						includeInlayVariableTypeHintsWhenTypeMatchesName = false,
+						includeInlayPropertyDeclarationTypeHints = true,
+						includeInlayFunctionLikeReturnTypeHints = true,
+						includeInlayEnumMemberValueHints = true,
+					},
+				},
+			},
+		})
 
-		-- Configure GraphQL
-		-- vim.lsp.config("graphql", {
-		-- 	capabilities = capabilities,
-		-- 	on_attach = on_attach,
-		-- 	filetypes = { "graphql", "gql", "svelte", "typescriptreact", "javascriptreact" },
-		-- })
+		-- Configure GraphQL Language Server
+		lspconfig.graphql.setup({
+			capabilities = capabilities,
+			on_attach = on_attach,
+			filetypes = { "graphql", "gql", "svelte", "typescriptreact", "javascriptreact" },
+			settings = {
+				graphql = {
+					validate = true,
+					schemaPath = "./schema.graphql", -- Adjust path as needed
+				},
+			},
+		})
 
 		-- Go format-on-save
 		vim.api.nvim_create_autocmd("BufWritePre", {
@@ -106,11 +198,18 @@ return {
 		-- Debugging for Go
 		require("dap-go").setup()
 
-		-- Diagnostic symbols
-		local signs = { Error = " ", Warn = " ", Hint = "󰠠 ", Info = " " }
-		for type, icon in pairs(signs) do
-			local hl = "DiagnosticSign" .. type
-			vim.fn.sign_define(hl, { text = icon, texthl = hl, numhl = "" })
-		end
+		vim.diagnostic.config({
+			signs = {
+				text = {
+					[vim.diagnostic.severity.ERROR] = "",
+					[vim.diagnostic.severity.WARN] = "",
+					[vim.diagnostic.severity.INFO] = "",
+					[vim.diagnostic.severity.HINT] = "󰌵",
+				},
+			},
+			virtual_text = true, -- optional
+			update_in_insert = false,
+			underline = true,
+		})
 	end,
 }
